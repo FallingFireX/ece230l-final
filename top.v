@@ -1,18 +1,17 @@
 module top 
 (
-    input clk,           // 100 MHz
-    input btnC,          // reset
-    input [15:0] sw,     // switches
-    output [15:0] led,    //LEDs
-    output [3:0] an,     //Outputs for 7-segment display
-    output [6:0] seg     //Outputs for 7-segment display
+    input clk,           
+    input btnC,          
+    input [15:0] sw,     
+    output [15:0] led,   
+    output [3:0] an,     
+    output [6:0] seg     
 );
 
 /******** DO NOT MODIFY ********/
-wire clk_1Hz;       //Generate Internal 1Hz Clock
-wire btnC_1Hz;     //Stretch load signal
+wire clk_1Hz;
+wire btnC_1Hz;
 
-//If running simulation, output clock frequency is 100MHz, else 1Hz
 `ifndef SYNTHESIS
     assign clk_1Hz = clk;
 `else
@@ -20,7 +19,6 @@ wire btnC_1Hz;     //Stretch load signal
     (.iclk(clk) , .rst(btnC) , .oclk(clk_1Hz));
 `endif
 
-// Check stopwatch/timer frequency
 initial begin
 `ifndef SYNTHESIS
     $display("Stopwatch/Timer Frequency set to 100MHz");
@@ -28,34 +26,31 @@ initial begin
     $display("Stopwatch/Timer Frequency set to 1Hz");
 `endif
 end
-
-//Seven Segment Display Interface
-seven_segment_inf seven_segment_inf_inst (.clk(clk), .rst(btnC), .count(count) , .anode(an), .segs(seg));
 /********************************/
 
-/******** UNCOMMENT & UPDATE THIS SECTION ********/
-//wire "count" feeds in count value to seven segment display. This should be a 6-bit value
-//This will decide if seven segment display shows stopwatch count or timer count
-wire [5:0] count;
-seven_segment_inf seven_segment_inf_inst (
-    .clk(clk),
-    .rst(btnC),
-    .count(count),
-    .anode(an),
-    .segs(seg)
 
-/******** UPDATE THIS SECTION ********/
-/******* INITIALIZE STOPWATCH AND TIMER MODULE ***********/
-// Control signals
-wire mode   = sw[0];        // 0 = stopwatch, 1= timer
-wire run    = sw[1];        // 0 = pause (circuit holds it state), 1 = run (counter increments/decrements)
-wire load   = sw[2];        // 1 = load value from load_value into timer counter, 0 = do nothing
-wire [5:0] load_value = sw[15:10];      //Set Timer Value (Value to load in timer)
+/******** CONTROL SIGNALS ********/
+wire mode   = sw[0];        
+wire run    = sw[1];        
+wire load   = sw[2];        
+wire [5:0] load_value = sw[15:10];
 
-//Stopwatch Module Instance
-//Use "clk_1Hz" as clock signal to stopwatch and timer modules
+
+/******** INTERNAL WIRES ********/
 wire [5:0] stopwatch_state;
- 
+wire [5:0] timer_state;
+wire [5:0] count;
+
+wire sw_en;
+wire tm_en;
+
+
+/******** ENABLE LOGIC ********/
+assign sw_en = run & ~mode;  
+assign tm_en = run & mode;   
+
+
+/******** STOPWATCH MODULE ********/
 stopwatch stopwatch_inst (
     .clk  (clk_1Hz),
     .rst  (btnC),
@@ -64,8 +59,7 @@ stopwatch stopwatch_inst (
 );
 
 
-//Timer Module Instance
-//Use "clk_1Hz" as clock signal to stopwatch and timer modules
+/******** TIMER MODULE ********/
 timer timer_inst (
     .clk       (clk_1Hz),
     .rst       (btnC),
@@ -74,12 +68,18 @@ timer timer_inst (
     .load_value(load_value),
     .state     (timer_state)
 );
-/******** LED OUTPUTS ********/
-assign led[8:3]   = stopwatch_state;   // stopwatch value on LEDs 8–3
-assign led[15:10] = timer_state;        // timer value on LEDs 15–10
 
-/******** SEVEN-SEGMENT MUX ********/
-// Show stopwatch when mode=0, timer when mode=1
+
+/******** LED OUTPUTS ********/
+assign led[8:3]   = stopwatch_state;
+assign led[15:10] = timer_state;
+
+
+/******** SEVEN SEGMENT DISPLAY ********/
 assign count = mode ? timer_state : stopwatch_state;
-    
-endmodule
+
+seven_segment_inf seven_segment_inf_inst (
+    .clk(clk),
+    .rst(btnC),
+    .count(count),
+    .anode(an),
